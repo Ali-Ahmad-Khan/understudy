@@ -48,8 +48,9 @@ my approval. Constraints, non-negotiable:
     where it goes. If my existing hooks already match Edit/Write/Bash or Stop,
     call out the interaction explicitly.
  - Fetch the kit via: git clone --depth 1 the repo above into a scratch or
-    vendor location I approve, then use its ./install.sh <target> <project>
-    (targets: claude = doctrine + gates + hooks; cursor / agents = doctrine
+    vendor location I approve, then use its installer — python3 install.py
+    <target> <project> on any OS (./install.sh is the macOS/Linux wrapper;
+    targets: claude = doctrine + gates + hooks; cursor / agents = doctrine
     only; prompt = stdout). Prefer the installer over hand-copying.
  - If my setup has its own constitution (AGENTS.md), the Understudy doctrine is
     SUBORDINATE to it: propose wiring it as an on-demand skill or a project

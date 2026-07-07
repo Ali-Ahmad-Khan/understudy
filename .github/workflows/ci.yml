@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: linter self-test
+        run: python sloplint/test_sloplint.py
+
+      - name: gate self-test (7 scenarios via real subprocess interface)
+        run: python gates/test_gates.py
+
+      - name: installer — fresh project
+        run: |
+          mkdir demo && python install.py claude demo
+          python - <<'EOF'
+          import json
+          from pathlib import Path
+          settings = json.load(open("demo/.claude/settings.json"))
+          assert "Stop" in settings["hooks"] and "PostToolUse" in settings["hooks"]
+          for f in ("gate_edit.py", "gate_stop.py", "sloplint.py"):
+              assert (Path("demo/.claude/understudy") / f).exists(), f
+          assert Path("demo/.claude/skills/understudy/SKILL.md").exists()
+          print("fresh install ok")
+          EOF
+
+      - name: installer — existing settings printed, never merged
+        run: |
+          mkdir -p demo2/.claude
+          echo '{"permissions":{}}' > demo2/.claude/settings.json
+          cp demo2/.claude/settings.json before.json
+          python install.py claude demo2 | tee out.txt
+          grep -q "add the following hooks" out.txt
+          diff before.json demo2/.claude/settings.json
+          echo "print-not-merge ok"
+
+      - name: installed gate blocks a bad stop (flat layout)
+        run: |
+          python - <<'EOF'
+          import json, subprocess, sys
+          from pathlib import Path
+          proj = Path("demo").resolve()
+          t = proj / "transcript.jsonl"
+          t.write_text(json.dumps({"type": "assistant", "message": {"content": [
+              {"type": "text", "text": "Great question! Fixed - should work now. Want me to continue?"}]}}))
+          r = subprocess.run([sys.executable, str(proj / ".claude/understudy/gate_stop.py")],
+                             input=json.dumps({"session_id": "ci", "cwd": str(proj),
+                                               "transcript_path": str(t), "stop_hook_active": False}),
+                             capture_output=True, text=True)
+          assert r.returncode == 2, f"expected block, got {r.returncode}: {r.stderr}"
+          print("installed gate blocks ok")
+          EOF

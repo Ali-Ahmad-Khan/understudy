@@ -85,4 +85,17 @@ with tempfile.TemporaryDirectory() as td:
                            input="not json{", capture_output=True, text=True)
         assert r.returncode == 0, f"{script} crashed on garbage input"
 
-print("ok — 6 gate scenarios pass (block, allow, loop-safety, doc-exempt, resilience)")
+    # 7. Hard block cap: after 5 blocks in one session, the gate stands down —
+    #    loop safety must hold even if the harness never sets stop_hook_active.
+    slop_t = transcript(tmp, slop_end)
+    for i in range(5):
+        r = run_gate("gate_stop.py", {"session_id": "s5", "cwd": td,
+                                      "transcript_path": slop_t,
+                                      "stop_hook_active": False})
+        assert r.returncode == 2, f"block {i + 1} did not fire: {r.stderr}"
+    r = run_gate("gate_stop.py", {"session_id": "s5", "cwd": td,
+                                  "transcript_path": slop_t,
+                                  "stop_hook_active": False})
+    assert r.returncode == 0, "block cap not enforced — infinite loop risk"
+
+print("ok — 7 gate scenarios pass (block, allow, loop-safety, doc-exempt, resilience, block-cap)")

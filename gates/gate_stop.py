@@ -11,8 +11,10 @@ Runs when the model tries to end its turn. Two mechanical checks:
 
 On violation: exit 2 with findings on stderr — Claude Code feeds that back to
 the model, which must fix the CAUSE (run the verification, rewrite the
-ending) before it is allowed to stop. Blocks at most once per stop cycle
-(honors stop_hook_active), so a session can never loop forever.
+ending) before it is allowed to stop. Loop safety is guaranteed by the gate
+itself: it honors stop_hook_active when present AND enforces a hard cap of
+BLOCK_CAP blocks per session, so no harness behavior can make it loop
+forever.
 
 Security posture: read-only analyzer. Stdlib only, no network, never executes
 model output, never modifies files outside its own state dir (which it only
@@ -24,6 +26,12 @@ import re
 import sys
 from pathlib import Path
 
+# Windows consoles may default to cp1252; never let an encoding error break a block.
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # Works in both layouts: repo (../sloplint/sloplint.py) and installed
 # (sloplint.py copied next to this file by install.sh).
 HERE = Path(__file__).resolve().parent
@@ -34,6 +42,7 @@ for candidate in (HERE, HERE.parent / "sloplint"):
 from sloplint import lint, score  # noqa: E402
 
 SLOP_THRESHOLD = 3
+BLOCK_CAP = 5  # hard per-session ceiling on blocks — the gate's own loop guarantee
 CODE_EXT = {".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rs", ".rb",
             ".java", ".c", ".cc", ".cpp", ".h", ".hpp", ".sh", ".bash",
             ".sql", ".php", ".swift", ".kt", ".cs", ".html", ".css", ".vue"}
@@ -93,13 +102,33 @@ def unverified_claim(cwd: str, session_id: str, final_msg: str) -> str | None:
             f"plainly what is untested and why.")
 
 
+def block_count(cwd: str, session_id: str, increment: bool = False) -> int:
+    """Per-session block counter — read, optionally increment. Never raises."""
+    session = str(session_id).replace("/", "_")
+    counter = Path(cwd) / ".claude" / "understudy" / "state" / f"{session}.blocks"
+    try:
+        count = int(counter.read_text()) if counter.exists() else 0
+    except (OSError, ValueError):
+        count = 0
+    if increment:
+        try:
+            counter.parent.mkdir(parents=True, exist_ok=True)
+            counter.write_text(str(count + 1))
+        except OSError:
+            pass
+    return count
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
     except Exception:
         return 0
-    # ponytail: one enforcement pass per stop cycle; the loop-safety ceiling
+    # One enforcement pass per stop cycle when the harness reports it...
     if data.get("stop_hook_active"):
+        return 0
+    # ...and a hard per-session cap regardless of harness behavior.
+    if block_count(data.get("cwd", "."), data.get("session_id", "unknown")) >= BLOCK_CAP:
         return 0
 
     final_msg = last_assistant_text(data.get("transcript_path", ""))
@@ -122,6 +151,7 @@ def main() -> int:
     if not problems:
         return 0
 
+    block_count(data.get("cwd", "."), data.get("session_id", "unknown"), increment=True)
     sys.stderr.write(
         "UNDERSTUDY STOP GATE — turn blocked. Fix the cause, not the wording that "
         "tripped the pattern:\n" + "\n".join(f"  - {p}" for p in problems) +

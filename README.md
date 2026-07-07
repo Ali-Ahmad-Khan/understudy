@@ -1,5 +1,10 @@
 # Understudy
 
+[![ci](https://github.com/Ali-Ahmad-Khan/understudy/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Ahmad-Khan/understudy/actions/workflows/ci.yml)
+![platforms](https://img.shields.io/badge/platforms-macOS%20·%20Linux%20·%20Windows-4c8dae)
+![deps](https://img.shields.io/badge/dependencies-none%20(stdlib)-2f9e44)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 **An enforcement harness that makes junior models operate like a senior
 agent — because discipline you can't enforce is discipline you don't have.**
 
@@ -40,39 +45,65 @@ so the always-on text shrinks to ~470 words — the un-checkable residue (goal
 decompilation, autonomy calibration, economy ladder), not exhortations the
 gates already enforce.
 
-## Get it
+## Setup — one command per OS, one installer underneath
 
-**One command** (requires only bash + curl; git and Python 3.9+ used if present):
+The only hard requirement is **Python 3.9+**. Git is used if present
+(tarball/zip fallback otherwise). Every path below ends in the same
+cross-platform installer, [`install.py`](install.py), producing identical
+artifacts — the generated hooks use Claude Code's *exec form*, which behaves
+the same under Git Bash and PowerShell, so there is one wiring, not one per OS.
+
+**macOS / Linux / WSL / Git Bash** — run from inside the project you want gated:
 
 ```sh
-# from inside the project you want gated — installs full Claude Code enforcement
 curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash
+```
 
-# or pick a target and directory explicitly
+**Windows (PowerShell)**:
+
+```powershell
+irm https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.ps1 | iex
+```
+
+Both default to full Claude Code enforcement in the current directory. Pick a
+target and directory explicitly:
+
+```sh
+# macOS/Linux — targets: claude | cursor | agents | prompt
 curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash -s -- cursor ~/code/my-app
 ```
 
-`setup.sh` is 40 readable lines: it fetches the kit once into
-`~/.local/share/understudy` and runs `install.sh` — which writes **only
-inside the target project**. Re-running updates the cached kit
-(`git pull --ff-only`) and re-installs. Pipe-to-bash makes you nervous
-(good instinct)? Read it first, or take the manual path:
+```powershell
+# Windows
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.ps1))) cursor C:\code\my-app
+```
+
+The bootstraps are ~40 readable lines each: fetch the kit once into
+`~/.local/share/understudy` (`%LOCALAPPDATA%\understudy` on Windows), then run
+`install.py`, which writes **only inside the target project**. Re-running
+updates the cache and re-installs. Pipe-to-shell makes you nervous (good
+instinct)? Read [`setup.sh`](setup.sh) / [`setup.ps1`](setup.ps1) first, or go manual:
 
 ```sh
 git clone https://github.com/Ali-Ahmad-Khan/understudy && cd understudy
 
-./install.sh claude ~/code/my-app      # doctrine + gates + hook wiring
-./install.sh cursor ~/code/my-app      # .cursor/rules/, alwaysApply
-./install.sh agents ~/code/my-app      # UNDERSTUDY.md + AGENTS.md include line
-./install.sh prompt | pbcopy           # raw body for any system prompt
+python3 install.py claude ~/code/my-app   # doctrine + gates + hook wiring  (Windows: python)
+python3 install.py cursor ~/code/my-app   # .cursor/rules/, alwaysApply
+python3 install.py agents ~/code/my-app   # UNDERSTUDY.md + AGENTS.md include line
+python3 install.py prompt                 # doctrine to stdout, for any system prompt
 
 # Gate agent output anywhere (CI, pre-commit, other harnesses)
 python3 sloplint/sloplint.py response.md          # human report
 some-agent ... | python3 sloplint/sloplint.py --json -   # exit 1 over threshold
 
-# Self-checks
+# Self-checks (also run in CI on Ubuntu, macOS, and Windows)
 python3 sloplint/test_sloplint.py && python3 gates/test_gates.py
 ```
+
+After a `claude` install, activation is two spots the installer tells you
+about: hooks (written for you, or printed if you already have a
+`settings.json`) and one optional `@.claude/skills/understudy/SKILL.md`
+include line for always-on doctrine.
 
 ## Fitting into an ecosystem you already have
 
