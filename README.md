@@ -40,16 +40,28 @@ so the always-on text shrinks to ~470 words — the un-checkable residue (goal
 decompilation, autonomy calibration, economy ladder), not exhortations the
 gates already enforce.
 
-## Quickstart
+## Get it
+
+**One command** (requires only bash + curl; git and Python 3.9+ used if present):
 
 ```sh
-git clone <this repo> && cd understudy
+# from inside the project you want gated — installs full Claude Code enforcement
+curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash
 
-# Full enforcement (Claude Code): doctrine + gates + hook wiring,
-# written ONLY inside the target project — never global config
-./install.sh claude ~/code/my-app
+# or pick a target and directory explicitly
+curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash -s -- cursor ~/code/my-app
+```
 
-# Doctrine-only adapters for harnesses without a stable hook runtime
+`setup.sh` is 40 readable lines: it fetches the kit once into
+`~/.local/share/understudy` and runs `install.sh` — which writes **only
+inside the target project**. Re-running updates the cached kit
+(`git pull --ff-only`) and re-installs. Pipe-to-bash makes you nervous
+(good instinct)? Read it first, or take the manual path:
+
+```sh
+git clone https://github.com/Ali-Ahmad-Khan/understudy && cd understudy
+
+./install.sh claude ~/code/my-app      # doctrine + gates + hook wiring
 ./install.sh cursor ~/code/my-app      # .cursor/rules/, alwaysApply
 ./install.sh agents ~/code/my-app      # UNDERSTUDY.md + AGENTS.md include line
 ./install.sh prompt | pbcopy           # raw body for any system prompt
@@ -61,6 +73,31 @@ some-agent ... | python3 sloplint/sloplint.py --json -   # exit 1 over threshold
 # Self-checks
 python3 sloplint/test_sloplint.py && python3 gates/test_gates.py
 ```
+
+## Fitting into an ecosystem you already have
+
+Understudy assumes you have a setup it should respect — a global `AGENTS.md`
+constitution, a `CLAUDE.md` that is a one-line shim or symlink, skills
+directories symlinked across harnesses, a `.memory/` vault, hooks already
+wired. Three properties keep it from colliding:
+
+- **Project-local, additive-only.** Every artifact lands inside the target
+  project (`.claude/understudy/`, `.claude/skills/understudy/`,
+  `.cursor/rules/`, `UNDERSTUDY.md`). Nothing under `~/` is created or
+  modified; existing files are never edited — where activation needs one
+  include line in *your* `AGENTS.md`/`CLAUDE.md`, the installer prints the
+  line and leaves the edit to you.
+- **Print, don't merge.** If `.claude/settings.json` already exists, the
+  installer prints the hooks JSON fragment instead of touching your file.
+- **Subordinate by design.** If you run a constitution, the doctrine slots in
+  as a project skill or include under it — it's a contract for the model's
+  output discipline, not a competing constitution.
+
+For setups too particular for any generic installer, use
+[`INTEGRATE.md`](INTEGRATE.md): a copy-paste prompt that makes **your own
+agent** audit your ecosystem (read-only), propose a minimal integration plan,
+wait for your approval, then execute and mechanically verify — including a
+diff-check that nothing pre-existing changed.
 
 What a blocked turn looks like (real gate output):
 
