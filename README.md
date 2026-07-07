@@ -17,6 +17,8 @@ a smaller model the first half. Understudy rebuilds the second: the
 load-bearing rules become runtime gates, and the model learns the behavior
 because the harness refuses the alternative.
 
+![Without Understudy the verification loop runs on your time; with Understudy it runs inside the model's turn, and you review evidence instead of claims.](assets/loop.svg)
+
 ## What it looks like
 
 The agent edits `server.ts`, runs nothing, and tries to end with *"Great
