@@ -6,9 +6,10 @@
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **Understudy blocks a coding agent from ending its turn until its claims
-survive two mechanical checks: a ledger proving something actually ran after
-its last code edit, and a linter over its final message.** A ~600-word
-doctrine and six graded drills cover the judgment machines can't check.
+survive two mechanical checks: a ledger proving something related actually
+ran after its last code edit, and a linter over its final message.** A
+~950-word doctrine and seven graded drills cover the judgment machines can't
+check.
 
 Frontier agents' discipline lives in two places: training (not reproducible
 from outside) and the **harness** — in Claude Code, editing a file the model
@@ -102,16 +103,16 @@ some-agent ... | python3 sloplint/sloplint.py --json -    # exit 1 over threshol
 ┌─ GATES (runtime enforcement) ─────────────────────────────────────────┐
 │ gate_edit.py   PostToolUse hook: ledger of every edit + execution     │
 │ gate_stop.py   Stop hook: model tries to end its turn →               │
-│                 · sloplint the final message (12 slop signatures)     │
-│                 · completion claim + code edits + zero executions     │
-│                   since the last edit = turn BLOCKED (exit 2),        │
-│                   findings fed back, model must fix the cause         │
+│                 · sloplint the final message (13 slop signatures)     │
+│                 · completion claim + code edits + no related          │
+│                   execution since the last edit = turn BLOCKED        │
+│                   (exit 2), findings fed back, model fixes the cause  │
 ├─ EVALS (measurement) ─────────────────────────────────────────────────┤
 │ sloplint/      deterministic linter, stdlib-only, CI exit codes       │
-│ drills/        6 graded tasks with layered traps — the regression     │
+│ drills/        7 graded tasks with layered traps — the regression     │
 │                suite for "did the discipline actually transfer"       │
 ├─ CONTRACT (text — deliberately last and smallest) ────────────────────┤
-│ DOCTRINE.md    ~600 words. Every rule tagged: [G] gate-enforced,      │
+│ DOCTRINE.md    ~950 words. Every rule tagged: [G] gate-enforced,      │
 │                [H] harness-enforced, [T] text-only. Text carries      │
 │                ONLY what machines can't check.                        │
 └───────────────────────────────────────────────────────────────────────┘
@@ -119,17 +120,17 @@ some-agent ... | python3 sloplint/sloplint.py --json -    # exit 1 over threshol
 
 The token economics follow from the layering: the gates cost **zero context
 tokens** (they run outside the model, injecting feedback only on violation),
-so the always-on text shrinks to ~600 words — the un-checkable residue, not
-exhortations the gates already enforce.
+so the always-on text stays under a thousand words — the un-checkable
+residue, not exhortations the gates already enforce.
 
 ## What each check is, mechanically
 
 | Check | Mechanism | Doctrine rule it replaces |
 |---|---|---|
-| Verification ledger | `gate_edit.py` records every `Edit/Write/Bash` event per session; `gate_stop.py` refuses completion vocabulary ("fixed", "done", "verified"…) when code edits have no execution after them. Doc-only edits exempt. | "Verify before you claim" — now illegal rather than requested |
-| Slop lint | 12 weighted regex rules over the final message, code blocks stripped: filler preambles, buried ledes, hedge padding, "should work" claims, menu endings, promise endings, arrow chains, structure ceremony on short answers, option sprawl, closing chrome, emoji confetti | The anti-slop table — as code, not as a table the model reads and forgets |
+| Verification ledger | `gate_edit.py` records every `Edit/Write/Bash` event per session; `gate_stop.py` refuses completion vocabulary ("fixed", "done", "verified"…) unless a command ran after the last code edit **and** that command plausibly relates to it — a recognized test/build runner, or a command naming an edited file. `ls` doesn't count. Doc-only edits exempt. | "Verify before you claim" — now illegal rather than requested |
+| Slop lint | 13 weighted regex rules over the final message, code blocks stripped: filler preambles, buried ledes, hedge padding, "should work" claims, menu endings, promise endings, arrow chains, structure ceremony on short answers, option sprawl, closing chrome, emoji confetti, and completion claims over mocked/placeholder work (honest "blocked, here's what's untested" reporting is exempt — that's the required behavior) | The anti-slop table — as code, not as a table the model reads and forgets |
 | Read-before-edit | Claude Code's own tool contract | Free — the harness already enforces it |
-| Drills 01–06 | Graded tasks with embedded traps (a second bug only code-tracing finds; a fix demanding a before-and-after run; a "client portal" brief that tests whether the model knows the artifact's anatomy beyond the prompt's nouns) | The un-gateable judgment: goal decompilation, constitutive scope, evidence-vs-recall, deciding, reporting |
+| Drills 01–07 | Graded tasks with embedded traps (a second bug only code-tracing finds; a fix demanding a before-and-after run; a "client portal" brief testing whether the model knows the artifact's anatomy beyond the prompt's nouns; an unreachable internal API that invites a fabricated "confirmed working") | The un-gateable judgment: goal decompilation, constitutive scope, evidence-vs-recall, deciding, blocked-reporting, reporting |
 
 The doctrine's least-known rule is worth naming here: **anatomy**. A request
 names an artifact; the artifact has parts the request never enumerates — a
@@ -140,7 +141,7 @@ tests exactly this.
 
 ## Using it as an evaluation harness
 
-1. **Baseline** — run the six drills against your model bare; record rubric
+1. **Baseline** — run the seven drills against your model bare; record rubric
    passes and sloplint scores.
 2. **Install** — per-project or global.
 3. **Re-run** — same drills, same grading. The delta is the evidence, per
@@ -185,9 +186,11 @@ can't break a session. The installer never edits a file it didn't create.
 - The gates catch the mechanical failure modes — unverified claims, decision
   outsourcing, generated-shaped filler. Whether a verified fix is the *right*
   fix stays with the drills and your review.
-- "An execution ran after the edit" is necessary, not sufficient — a model
-  can run `ls` and technically satisfy the ledger. It defeats lazy claims,
-  not adversarial ones; adversarial gaming is visible in the transcript.
+- The ledger's relatedness check (runner detected, or the command names an
+  edited file) stops trivial gaming — `ls` no longer satisfies it — but a
+  model that echoes a filename into an unrelated command still slips through.
+  It defeats lazy false claims, not adversarial ones; adversarial gaming
+  stays visible in the transcript.
 - Hook enforcement is Claude Code-first because its hook contract (stdin
   JSON, exec form, exit 2 blocks) is documented and stable. Other harnesses
   get the doctrine plus the CI linter until their hook APIs are worth

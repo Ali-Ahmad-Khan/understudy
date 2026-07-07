@@ -48,4 +48,20 @@ assert score(clean_findings) <= 3, f"clean sample flagged: {clean_findings}"
 code_only = "Done and verified.\n\n```py\n# should work in theory -> -> ok\n```\n"
 assert score(lint(code_only)) == 0, f"code block leaked into prose checks: {lint(code_only)}"
 
+# Silent degradation: completion claim over substitute work is flagged...
+DEGRADED = ("All done — the currency endpoint now works. "
+            "I mocked the API response with placeholder data.\n")
+assert "silent-degradation" in {f["rule"] for f in lint(DEGRADED)}, lint(DEGRADED)
+
+# ...but honest blocked-reporting is not (that's the required behavior)...
+HONEST = ("Blocked: the internal API is unreachable from here, so the fetch path "
+          "is untested. The conversion logic passes against a labeled fixture; "
+          "the integration remains unproven until someone runs it inside the VPN.\n")
+assert "silent-degradation" not in {f["rule"] for f in lint(HONEST)}, lint(HONEST)
+
+# ...and neither is mocking inside tests, which is what mocks are for.
+TEST_MOCK = ("Auth flow implemented and verified — 14 passed. "
+             "The unit tests mock the external API as designed.\n")
+assert "silent-degradation" not in {f["rule"] for f in lint(TEST_MOCK)}, lint(TEST_MOCK)
+
 print(f"ok — slop scored {score(slop_findings)}, clean scored {score(clean_findings)}")

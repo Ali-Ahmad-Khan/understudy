@@ -118,5 +118,26 @@ with tempfile.TemporaryDirectory() as td:
                                   "stop_hook_active": False}, base=inst)
     assert r.returncode == 2 and "verification-ledger" in r.stderr, r.stderr
 
-print("ok — 8 gate scenarios pass (block, allow, loop-safety, doc-exempt, "
-      "resilience, block-cap, installed-layout)")
+    # 9. Anti-gaming: an unrelated command ('ls') does NOT satisfy the ledger;
+    #    a command naming the edited file (or a recognized runner) does.
+    run_gate("gate_edit.py", {"session_id": "s6", "cwd": td, "tool_name": "Edit",
+                              "tool_input": {"file_path": "/repo/parser.py"}})
+    run_gate("gate_edit.py", {"session_id": "s6", "cwd": td, "tool_name": "Bash",
+                              "tool_input": {"command": "ls -la"}})
+    claim = ("The parser bug is fixed: the tokenizer dropped the last field on "
+             "unterminated quotes, so I close the pending state at EOF and re-ran "
+             "the whole suite — 18 passed, 0 failed.")
+    r = run_gate("gate_stop.py", {"session_id": "s6", "cwd": td,
+                                  "transcript_path": transcript(tmp, claim),
+                                  "stop_hook_active": False})
+    assert r.returncode == 2 and "look related" in r.stderr, \
+        f"'ls' wrongly satisfied the ledger: {r.returncode} {r.stderr}"
+    run_gate("gate_edit.py", {"session_id": "s6", "cwd": td, "tool_name": "Bash",
+                              "tool_input": {"command": "python parser.py --selftest"}})
+    r = run_gate("gate_stop.py", {"session_id": "s6", "cwd": td,
+                                  "transcript_path": transcript(tmp, claim),
+                                  "stop_hook_active": False})
+    assert r.returncode == 0, f"related command wrongly blocked: {r.stderr}"
+
+print("ok — 9 gate scenarios pass (block, allow, loop-safety, doc-exempt, "
+      "resilience, block-cap, installed-layout, anti-gaming)")

@@ -58,6 +58,31 @@ CODE_EXT = {".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rs", ".rb",
 CLAIM_RE = re.compile(
     r"\b(fixed|done|verified|resolved|works now|now works|passing|passed"
     r"|completed?|implemented|deployed|working as expected)\b", re.I)
+# Recognized test/build/run invocations count as verification for any edit.
+# ponytail: common-runner list + filename-token fallback; echoing a filename
+# into an unrelated command still slips through — that gaming stays visible
+# in the transcript.
+RUNNER_RE = re.compile(
+    r"\b(pytest|unittest|jest|vitest|mocha|rspec|phpunit|ctest|tox"
+    r"|npm (test|run|start)|npx |yarn|pnpm|bun|node |deno |tsc\b"
+    r"|python3? |ruby |uv run|uvicorn|flask|rails"
+    r"|go (test|run|build|vet)|cargo (test|run|build|check)"
+    r"|make\b|cmake|mvn|gradle|\./gradlew|dotnet|swift (test|build|run)"
+    r"|flutter|docker (build|compose)|curl )", re.I)
+
+
+def exec_verifies(cmd: str, edit_paths: list) -> bool:
+    """A command verifies the edits if it's a recognized runner or names one
+    of the edited files (basename or stem)."""
+    low = cmd.lower()
+    if RUNNER_RE.search(low):
+        return True
+    for p in edit_paths:
+        name = Path(p).name.lower()
+        stem = Path(p).stem.lower()
+        if (name and name in low) or (len(stem) >= 3 and stem in low):
+            return True
+    return False
 
 
 def last_assistant_text(transcript_path: str) -> str:
@@ -98,17 +123,24 @@ def unverified_claim(cwd: str, session_id: str, final_msg: str) -> str | None:
                      if e.get("t") == "edit" and Path(e.get("path", "")).suffix in CODE_EXT]
     if not code_edit_idx:
         return None
-    exec_after = any(e.get("t") == "exec" for e in events[code_edit_idx[-1] + 1:])
-    if exec_after:
-        return None
     m = CLAIM_RE.search(final_msg)
     if not m:
         return None
-    edited = sorted({Path(events[i]["path"]).name for i in code_edit_idx})
-    return (f"completion claim ('{m.group(0)}') with ZERO commands executed after the "
-            f"last code edit ({', '.join(edited[:5])}). Doctrine §7: run the changed "
-            f"code / tests and report the observed output — or drop the claim and say "
-            f"plainly what is untested and why.")
+    edit_paths = [events[i].get("path", "") for i in code_edit_idx]
+    edited = sorted({Path(p).name for p in edit_paths})
+    execs_after = [e.get("cmd", "") for e in events[code_edit_idx[-1] + 1:]
+                   if e.get("t") == "exec"]
+    if not execs_after:
+        return (f"completion claim ('{m.group(0)}') with ZERO commands executed after "
+                f"the last code edit ({', '.join(edited[:5])}). Run the changed code / "
+                f"tests and report the observed output — or drop the claim and say "
+                f"plainly what is untested and why.")
+    if any(exec_verifies(c, edit_paths) for c in execs_after):
+        return None
+    return (f"completion claim ('{m.group(0)}') but none of the {len(execs_after)} "
+            f"command(s) run after the last code edit look related to the edited "
+            f"files ({', '.join(edited[:5])}). Run the changed code or its tests — "
+            f"or drop the claim and say plainly what is untested and why.")
 
 
 def block_count(cwd: str, session_id: str, increment: bool = False) -> int:

@@ -38,6 +38,7 @@ RULES = {
     "option-sprawl":      (2, "enumerates alternatives instead of deciding"),
     "conclusion-chrome":  (1, "closing boilerplate ('in conclusion', 'hope this helps')"),
     "emoji-confetti":     (1, "decorative emoji"),
+    "silent-degradation": (3, "claims completion over mocked/placeholder/simulated work"),
 }
 
 PREAMBLE_RE = re.compile(
@@ -63,6 +64,17 @@ ARROW_RE = re.compile(r"(→[^\n]*→|->[^\n]*->)")
 OPTIONS = ("alternatively", "another option", "another approach", "you could also", "you might also")
 CHROME = ("in conclusion", "i hope this helps", "hope this helps",
           "feel free to", "don't hesitate to", "happy coding")
+# Silent degradation: substitute work is slop only when paired with a
+# completion claim; honest "blocked, here's what's untested" is the doctrine's
+# required behavior and must not be flagged. Lines about tests are exempt —
+# tests mock things by design. ponytail: word-list heuristic; a model can
+# paraphrase around it, but the transcript still shows the substitution.
+DEGRADED_RE = re.compile(
+    r"\b(mock(ed|s)?|stub(bed|s)?|placeholder|simulated|dummy data|fake data"
+    r"|hardcoded for now)\b", re.I)
+TEST_CONTEXT_RE = re.compile(r"\btests?\b|\bspec\b|\bunit\b|\bfixture\b", re.I)
+COMPLETION_RE = re.compile(
+    r"\b(fixed|done|completed?|finished|ready|works|working|implemented|verified)\b", re.I)
 
 
 def _is_emoji(ch: str) -> bool:
@@ -95,6 +107,7 @@ def lint(text: str) -> list[dict]:
             hit("buried-lede", first_no, first)
 
     # --- line-scoped patterns ---
+    degraded = []
     for i, line in enumerate(lines, 1):
         low = line.lower()
         for h in HEDGES:
@@ -111,6 +124,11 @@ def lint(text: str) -> list[dict]:
             if c in low:
                 hit("conclusion-chrome", i, line)
                 break
+        if DEGRADED_RE.search(line) and not TEST_CONTEXT_RE.search(line):
+            degraded.append((i, line))
+
+    if degraded and COMPLETION_RE.search(prose):
+        hit("silent-degradation", degraded[0][0], degraded[0][1])
 
     # --- ending (last paragraph of prose) ---
     paras = [p.strip() for p in re.split(r"\n\s*\n", prose) if p.strip()]
