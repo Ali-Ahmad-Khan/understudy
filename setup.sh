@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Understudy one-command bootstrap. Read me before piping — I'm 40 lines.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash -s -- claude .
-#   curl -fsSL .../setup.sh | bash -s -- cursor ~/code/my-app
-#   curl -fsSL .../setup.sh | bash               # defaults: claude target, current dir
+#   curl -fsSL https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.sh | bash               # per-project, current dir
+#   curl -fsSL .../setup.sh | bash -s -- global                  # every Claude Code project on this machine
+#   curl -fsSL .../setup.sh | bash -s -- cursor ~/code/my-app    # targets: claude|global|cursor|agents|prompt
 #
 # What it does — exactly two things:
 #   1. Fetch the kit into ${XDG_DATA_HOME:-~/.local/share}/understudy

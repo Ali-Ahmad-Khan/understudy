@@ -20,6 +20,20 @@ done-criteria; what's out of scope. State your interpretation in one line and
 commit — a coherent interpretation stated openly beats a hedge that
 interprets nothing. **[T]**
 
+## Anatomy
+
+A request names an artifact; the artifact has parts the request never
+enumerates. Resolve the request against the real thing, not the prompt's word
+list: a "client portal" has files, billing, and team access whether or not
+the brief mentions them, because every real instance of the class does. You
+often know the artifact's anatomy better than the requester — supplying it is
+the value they came for. So enumerate the constitutive parts from domain
+knowledge, build the ones the artifact can't exist without, and cut the
+merely conceivable (that's what the economy ladder governs — economy trims
+speculation, never anatomy). The test for which is which: would a
+practitioner reviewing the deliverable ask "where's X?" — then X was
+constitutive. Every omission is a stated decision, never a blind spot. **[T]**
+
 ## Evidence
 
 Completion words — "fixed", "done", "verified", "passing" — are illegal until

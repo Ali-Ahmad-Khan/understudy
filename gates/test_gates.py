@@ -3,6 +3,7 @@
 stdin, transcript/ledger on disk, exit code out. Run: python3 test_gates.py"""
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -11,8 +12,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
-def run_gate(script: str, payload: dict) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, str(HERE / script)],
+def run_gate(script: str, payload: dict, base: Path = HERE) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(base / script)],
                           input=json.dumps(payload), capture_output=True, text=True)
 
 
@@ -98,4 +99,24 @@ with tempfile.TemporaryDirectory() as td:
                                   "stop_hook_active": False})
     assert r.returncode == 0, "block cap not enforced — infinite loop risk"
 
-print("ok — 7 gate scenarios pass (block, allow, loop-safety, doc-exempt, resilience, block-cap)")
+    # 8. Installed layout (<x>/.claude/understudy): state lives BESIDE the
+    #    gates, never in the hook's cwd — this is what makes global installs
+    #    safe (no state sprinkled into the projects being worked on).
+    inst = tmp / "home" / ".claude" / "understudy"
+    inst.mkdir(parents=True)
+    for f in ("gate_edit.py", "gate_stop.py"):
+        shutil.copyfile(HERE / f, inst / f)
+    shutil.copyfile(HERE.parent / "sloplint" / "sloplint.py", inst / "sloplint.py")
+    proj = tmp / "someproject"
+    proj.mkdir()
+    run_gate("gate_edit.py", {"session_id": "g1", "cwd": str(proj), "tool_name": "Edit",
+                              "tool_input": {"file_path": "/repo/api.go"}}, base=inst)
+    assert (inst / "state" / "g1.jsonl").exists(), "state not beside installed gates"
+    assert not (proj / ".claude").exists(), "global install leaked state into project cwd"
+    r = run_gate("gate_stop.py", {"session_id": "g1", "cwd": str(proj),
+                                  "transcript_path": transcript(tmp, slop_end),
+                                  "stop_hook_active": False}, base=inst)
+    assert r.returncode == 2 and "verification-ledger" in r.stderr, r.stderr
+
+print("ok — 8 gate scenarios pass (block, allow, loop-safety, doc-exempt, "
+      "resilience, block-cap, installed-layout)")

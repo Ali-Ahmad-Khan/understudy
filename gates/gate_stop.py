@@ -43,6 +43,15 @@ from sloplint import lint, score  # noqa: E402
 
 SLOP_THRESHOLD = 3
 BLOCK_CAP = 5  # hard per-session ceiling on blocks — the gate's own loop guarantee
+
+
+def state_dir(cwd: str) -> Path:
+    # Mirrors gate_edit.py: installed layout (<anything>/.claude/understudy)
+    # keeps state beside the gates (project- or home-local); repo/test layout
+    # falls back to the hook's cwd.
+    if HERE.name == "understudy":
+        return HERE / "state"
+    return Path(cwd) / ".claude" / "understudy" / "state"
 CODE_EXT = {".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rs", ".rb",
             ".java", ".c", ".cc", ".cpp", ".h", ".hpp", ".sh", ".bash",
             ".sql", ".php", ".swift", ".kt", ".cs", ".html", ".css", ".vue"}
@@ -76,7 +85,7 @@ def last_assistant_text(transcript_path: str) -> str:
 def unverified_claim(cwd: str, session_id: str, final_msg: str) -> str | None:
     """Ledger check: code edits with no execution after them + a completion claim."""
     session = str(session_id).replace("/", "_")
-    ledger = Path(cwd) / ".claude" / "understudy" / "state" / f"{session}.jsonl"
+    ledger = state_dir(cwd) / f"{session}.jsonl"
     if not ledger.exists():
         return None
     events = []
@@ -105,7 +114,7 @@ def unverified_claim(cwd: str, session_id: str, final_msg: str) -> str | None:
 def block_count(cwd: str, session_id: str, increment: bool = False) -> int:
     """Per-session block counter — read, optionally increment. Never raises."""
     session = str(session_id).replace("/", "_")
-    counter = Path(cwd) / ".claude" / "understudy" / "state" / f"{session}.blocks"
+    counter = state_dir(cwd) / f"{session}.blocks"
     try:
         count = int(counter.read_text()) if counter.exists() else 0
     except (OSError, ValueError):

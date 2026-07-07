@@ -13,7 +13,18 @@ import sys
 import time
 from pathlib import Path
 
+HERE = Path(__file__).resolve().parent
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+
+
+def state_dir(cwd: str) -> Path:
+    # Installed layout (<anything>/.claude/understudy) keeps state beside the
+    # gates — project installs stay project-local, global installs stay in
+    # ~/.claude and never touch the repos being worked on. Repo/test layout
+    # falls back to the hook's cwd.
+    if HERE.name == "understudy":
+        return HERE / "state"
+    return Path(cwd) / ".claude" / "understudy" / "state"
 
 
 def main() -> int:
@@ -34,10 +45,10 @@ def main() -> int:
 
     entry["ts"] = time.time()
     try:
-        state_dir = Path(data.get("cwd", ".")) / ".claude" / "understudy" / "state"
-        state_dir.mkdir(parents=True, exist_ok=True)
+        sdir = state_dir(data.get("cwd", "."))
+        sdir.mkdir(parents=True, exist_ok=True)
         session = str(data.get("session_id", "unknown")).replace("/", "_")
-        with open(state_dir / f"{session}.jsonl", "a", encoding="utf-8") as f:
+        with open(sdir / f"{session}.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError:
         pass

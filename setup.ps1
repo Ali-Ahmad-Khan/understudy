@@ -1,7 +1,8 @@
 # Understudy one-command bootstrap for Windows PowerShell. Read me first — I'm short.
 #
-#   irm https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.ps1 | iex
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.ps1))) cursor C:\code\my-app
+#   irm https://raw.githubusercontent.com/Ali-Ahmad-Khan/understudy/main/setup.ps1 | iex                       # per-project, current dir
+#   & ([scriptblock]::Create((irm .../setup.ps1))) global                                                      # machine-wide
+#   & ([scriptblock]::Create((irm .../setup.ps1))) cursor C:\code\my-app   # targets: claude|global|cursor|agents|prompt
 #
 # Mirrors setup.sh: (1) fetch the kit once into %LOCALAPPDATA%\understudy
 # (git clone if available, zip download otherwise), (2) run install.py, which
